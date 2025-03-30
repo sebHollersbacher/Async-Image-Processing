@@ -1,11 +1,18 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using CommunityToolkit.Maui.Storage;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls;
 
 namespace Async_Image_Processing
 {
     public partial class MainPage
     {
         public ObservableCollection<ImageSource> ImagesList { get; set; } = new();
-        private string _imagesDirectory = ""; // TODO: make selection of Path 
+        private string _imagesDirectory;
         private CancellationTokenSource _cts;
 
         public MainPage()
@@ -22,8 +29,13 @@ namespace Async_Image_Processing
 
         private async void OnLoadImagesClicked(object sender, EventArgs e)
         {
+            
             _cts?.CancelAsync();
             _cts = new CancellationTokenSource();
+            
+            // TODO: proper checks
+            var res = await FolderPicker.PickAsync(_cts.Token);
+            _imagesDirectory = res.Folder.Path;
 
             try
             {

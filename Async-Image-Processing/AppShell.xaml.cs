@@ -1,4 +1,6 @@
-﻿namespace Async_Image_Processing
+﻿using Microsoft.Maui.Controls;
+
+namespace Async_Image_Processing
 {
     public partial class AppShell : Shell
     {
