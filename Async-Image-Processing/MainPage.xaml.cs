@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading;
@@ -11,7 +12,10 @@ namespace Async_Image_Processing
 {
     public partial class MainPage
     {
-        public ObservableCollection<ImageSource> ImagesList { get; set; } = new();
+        private const int BatchSize = 5;   // Number of images loaded at once
+        private const int Delay = 50;   // Delay for smoother UI
+        
+        public ObservableCollection<ImageSource> ImagesList { get; } = new();
         private string _imagesDirectory;
         private CancellationTokenSource _cts;
 
@@ -29,10 +33,9 @@ namespace Async_Image_Processing
 
         private async void OnLoadImagesClicked(object sender, EventArgs e)
         {
-            
             _cts?.CancelAsync();
             _cts = new CancellationTokenSource();
-            
+
             // TODO: proper checks
             var res = await FolderPicker.PickAsync(_cts.Token);
             _imagesDirectory = res.Folder.Path;
@@ -49,30 +52,37 @@ namespace Async_Image_Processing
 
         private async Task LoadImagesAsync(CancellationToken cancellationToken)
         {
-            // Worker Thread
-            ImagesList.Clear();
-            int loadedImages = 0;
-            string[] imageFiles = Directory.GetFiles(_imagesDirectory, "*.jpg");
-
-            IProgress<ImageSource> progress = new Progress<ImageSource>(image =>
+            // Run everything on a single worker thread
+            await Task.Run(async () => 
             {
-                // on UI thread
-                ImagesList.Add(image);
-                ImageProgressBar.Progress = (double)++loadedImages / imageFiles.Length;
-            });
+                ImagesList.Clear();
+                string[] imageFiles = Directory.GetFiles(_imagesDirectory, "*.jpg");
+                int loadedImages = 0;
+                List<ImageSource> images = new();
+                
+                foreach (string file in imageFiles)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    images.Add(ImageSource.FromFile(file));
+                    loadedImages++;
 
-            // Worker Threads
-            await Parallel.ForEachAsync(imageFiles, cancellationToken, async (file, token) =>
-            {
-                // Worker Thread
-                var imageSource = ImageSource.FromFile(file);
-                progress.Report(imageSource);
+                    if (images.Count > BatchSize || loadedImages >= imageFiles.Length)
+                    {
+                        // Update UI in UI-Threead
+                        await MainThread.InvokeOnMainThreadAsync(() =>
+                        {
+                            foreach (var image in images)
+                                ImagesList.Add(image);
+                            ImageProgressBar.Progress = (double)loadedImages / imageFiles.Length;
+                        });
+                        // Continue with worker thread
+                        await Task.Delay(Delay, cancellationToken);
+                        images.Clear();
+                    }
+                }
 
-                await Task.Delay(100, token); // Delay to not overwhelm UI
-            });
-            
-            // On UI Thread
-            await MainThread.InvokeOnMainThreadAsync(() => ImageProgressBar.Progress = 1);
+                await MainThread.InvokeOnMainThreadAsync(() => ImageProgressBar.Progress = 1);
+            }, cancellationToken);
         }
     }
 }
