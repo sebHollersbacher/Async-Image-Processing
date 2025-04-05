@@ -12,7 +12,7 @@
             <CollectionView Margin="10" ItemsLayout="VerticalGrid, 10" ItemsSource="{Binding ImagesList}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Image Source="{Binding}" WidthRequest="128" HeightRequest="128"/>
+                        <Image Source="{Binding}"/>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>

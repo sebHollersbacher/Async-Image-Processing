@@ -1,24 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Maui.Storage;
-using Microsoft.Maui.ApplicationModel;
-using Microsoft.Maui.Controls;
 using SkiaSharp;
 
 namespace Async_Image_Processing
 {
     public partial class MainPage
     {
-        private const int BatchSize = 5;   // Number of images loaded at once
-        private const int Delay = 50;   // Delay for smoother UI
-        
         public ObservableCollection<ImageSource> ImagesList { get; } = new();
-        private string _imagesDirectory;
         private CancellationTokenSource _cts;
+        private const int IMAGE_RESOLUTION = 128;
 
         public MainPage()
         {
@@ -29,40 +19,51 @@ namespace Async_Image_Processing
         private void OnCancelLoadingClicked(object sender, EventArgs e)
         {
             _cts?.Cancel();
-            ImageProgressBar.Progress = 0;
         }
 
-        private async void OnGrayLoadingClicked(object sender, EventArgs e)
+        private void OnGrayLoadingClicked(object sender, EventArgs e)
         {
-            var filteredImages = new List<ImageSource>();
-
-            foreach (var image in ImagesList)
-            {
-                var filtered = await ApplyGrayscaleAsync(image);
-                filteredImages.Add(filtered);
-            }
-
+            var copyList = ImagesList.ToList();
             ImagesList.Clear();
+            ImageProgressBar.Progress = 0;
+            int loadedImagesCount = 0;
+            var total = copyList.Count;
+            
+            Task.Run(async () =>
+            {
+                foreach (var image in copyList)
+                {
+                    var filtered = await ApplyGrayscaleAsync(image);
+                    loadedImagesCount++;
 
-            foreach (var filtered in filteredImages)
-                ImagesList.Add(filtered);
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        ImagesList.Add(filtered);
+                        ImageProgressBar.Progress = (double)loadedImagesCount / total;
+                    });
+                }
+            });
         }
-        
+
         private async Task<ImageSource> ApplyGrayscaleAsync(ImageSource source)
         {
-            if (source is not FileImageSource fileSource)
-                return source; // Skip non-file images
+            if (source is not StreamImageSource streamSource)
+                return source;
 
-            using var stream = File.OpenRead(fileSource.File);  // Open the image file stream
-            using var skStream = new SKManagedStream(stream);
-            using var bitmap = SKBitmap.Decode(skStream);       // Decode it into a SkiaSharp Bitmap
+            var s = streamSource.Stream;
+            await using var originalStream = await streamSource.Stream(CancellationToken.None);
 
-            // Create a surface to apply the filter on
+            var memoryStream = new MemoryStream();
+            await originalStream.CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+            
+            using var skStream = new SKManagedStream(memoryStream);
+            using var bitmap = SKBitmap.Decode(skStream);
+
             using var surface = SKSurface.Create(new SKImageInfo(bitmap.Width, bitmap.Height));
             var canvas = surface.Canvas;
             canvas.Clear();
 
-            // Apply grayscale color filter
             using var paint = new SKPaint
             {
                 ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
@@ -70,24 +71,22 @@ namespace Async_Image_Processing
                     0.33f, 0.33f, 0.33f, 0, 0,
                     0.33f, 0.33f, 0.33f, 0, 0,
                     0.33f, 0.33f, 0.33f, 0, 0,
-                    0,     0,     0,     1, 0
+                    0, 0, 0, 1, 0
                 })
             };
 
-            // Draw the bitmap with the grayscale filter applied
             canvas.DrawBitmap(bitmap, 0, 0, paint);
+
             using var image = surface.Snapshot();
-    
-            // Ensure we get the correct encoded image data
             using var data = image.Encode(SKEncodedImageFormat.Jpeg, 100);
-            if (data == null) 
+            if (data == null)
                 throw new InvalidOperationException("Failed to encode image.");
 
-            // Convert encoded data into a MemoryStream
-            var imageBytes = data.ToArray();  // Convert to byte array
-            return ImageSource.FromStream(() => new MemoryStream(imageBytes));  // Return the ImageSource
+            var imageBytes = data.ToArray();
+
+            return ImageSource.FromStream(() => new MemoryStream(imageBytes));
         }
-        
+
         private async void OnLoadImagesClicked(object sender, EventArgs e)
         {
             _cts?.CancelAsync();
@@ -95,11 +94,11 @@ namespace Async_Image_Processing
 
             // TODO: proper checks
             var res = await FolderPicker.PickAsync(_cts.Token);
-            _imagesDirectory = res.Folder.Path;
+            var imagesDirectory = res.Folder.Path;
 
             try
             {
-                await LoadImagesAsync(_cts.Token);
+                await LoadImagesAsync(imagesDirectory, _cts.Token);
             }
             catch (OperationCanceledException)
             {
@@ -107,35 +106,56 @@ namespace Async_Image_Processing
             }
         }
 
-        private async Task LoadImagesAsync(CancellationToken cancellationToken)
+        private async Task LoadImagesAsync(string imagesDirectory, CancellationToken cancellationToken)
         {
             // Run everything on a single worker thread
-            await Task.Run(async () => 
+            await Task.Run(async () =>
             {
                 ImagesList.Clear();
-                string[] imageFiles = Directory.GetFiles(_imagesDirectory, "*.jpg");
-                int loadedImages = 0;
-                List<ImageSource> images = new();
-                
-                foreach (string file in imageFiles)
+                var imageFiles = Directory.GetFiles(imagesDirectory, "*.jpg");
+                var loadedImages = 0;
+                ImageSource imageSource;
+
+                foreach (var file in imageFiles)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    images.Add(ImageSource.FromFile(file));
-                    loadedImages++;
-
-                    if (images.Count > BatchSize || loadedImages >= imageFiles.Length)
+                    await using (var stream = File.OpenRead(file))
                     {
-                        // Update UI in UI-Threead
-                        await MainThread.InvokeOnMainThreadAsync(() =>
+                        using (var originalBitmap = SKBitmap.Decode(stream))
                         {
-                            foreach (var image in images)
-                                ImagesList.Add(image);
-                            ImageProgressBar.Progress = (double)loadedImages / imageFiles.Length;
-                        });
-                        // Continue with worker thread
-                        await Task.Delay(Delay, cancellationToken);
-                        images.Clear();
+                            float scalingFactor = Math.Min((float)IMAGE_RESOLUTION / originalBitmap.Width,
+                               (float)IMAGE_RESOLUTION / originalBitmap.Height);
+
+                            if (scalingFactor is < 1 and > 0)
+                            {
+                                var newWidth = (int)(originalBitmap.Width * scalingFactor);
+                                var newHeight = (int)(originalBitmap.Height * scalingFactor);
+                                using var resizedBitmap = originalBitmap.Resize(new SKImageInfo(newWidth, newHeight),
+                                    SKFilterQuality.None);
+                                using (var image = SKImage.FromBitmap(resizedBitmap))
+                                {
+                                    using (var data = image.Encode())
+                                    {
+                                        var imageBytes = data.ToArray();
+                                        imageSource =
+                                            ImageSource.FromStream(() => new MemoryStream(imageBytes));
+                                        loadedImages++;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                imageSource = ImageSource.FromFile(file);
+                                loadedImages++;
+                            }
+                        }
                     }
+
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        ImagesList.Add(imageSource);
+                        ImageProgressBar.Progress = (double)loadedImages / imageFiles.Length;
+                    });
                 }
 
                 await MainThread.InvokeOnMainThreadAsync(() => ImageProgressBar.Progress = 1);
