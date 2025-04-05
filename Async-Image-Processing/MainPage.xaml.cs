@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Maui.Storage;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
+using SkiaSharp;
 
 namespace Async_Image_Processing
 {
@@ -31,6 +32,62 @@ namespace Async_Image_Processing
             ImageProgressBar.Progress = 0;
         }
 
+        private async void OnGrayLoadingClicked(object sender, EventArgs e)
+        {
+            var filteredImages = new List<ImageSource>();
+
+            foreach (var image in ImagesList)
+            {
+                var filtered = await ApplyGrayscaleAsync(image);
+                filteredImages.Add(filtered);
+            }
+
+            ImagesList.Clear();
+
+            foreach (var filtered in filteredImages)
+                ImagesList.Add(filtered);
+        }
+        
+        private async Task<ImageSource> ApplyGrayscaleAsync(ImageSource source)
+        {
+            if (source is not FileImageSource fileSource)
+                return source; // Skip non-file images
+
+            using var stream = File.OpenRead(fileSource.File);  // Open the image file stream
+            using var skStream = new SKManagedStream(stream);
+            using var bitmap = SKBitmap.Decode(skStream);       // Decode it into a SkiaSharp Bitmap
+
+            // Create a surface to apply the filter on
+            using var surface = SKSurface.Create(new SKImageInfo(bitmap.Width, bitmap.Height));
+            var canvas = surface.Canvas;
+            canvas.Clear();
+
+            // Apply grayscale color filter
+            using var paint = new SKPaint
+            {
+                ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
+                {
+                    0.33f, 0.33f, 0.33f, 0, 0,
+                    0.33f, 0.33f, 0.33f, 0, 0,
+                    0.33f, 0.33f, 0.33f, 0, 0,
+                    0,     0,     0,     1, 0
+                })
+            };
+
+            // Draw the bitmap with the grayscale filter applied
+            canvas.DrawBitmap(bitmap, 0, 0, paint);
+            using var image = surface.Snapshot();
+    
+            // Ensure we get the correct encoded image data
+            using var data = image.Encode(SKEncodedImageFormat.Jpeg, 100);
+            if (data == null) 
+                throw new InvalidOperationException("Failed to encode image.");
+
+            // Convert encoded data into a MemoryStream
+            var imageBytes = data.ToArray();  // Convert to byte array
+            return ImageSource.FromStream(() => new MemoryStream(imageBytes));  // Return the ImageSource
+        }
+        
         private async void OnLoadImagesClicked(object sender, EventArgs e)
         {
             _cts?.CancelAsync();

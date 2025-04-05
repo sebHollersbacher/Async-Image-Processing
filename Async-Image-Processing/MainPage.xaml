@@ -8,6 +8,7 @@
             <ProgressBar Margin="10" x:Name="ImageProgressBar"></ProgressBar>
             <Button Margin="10" Text="Load Images" Clicked="OnLoadImagesClicked"/>
             <Button Margin="10" Text="Cancel" Clicked="OnCancelLoadingClicked"/>
+            <Button Text="Apply Grayscale Filter" Clicked="OnGrayLoadingClicked" />
             <CollectionView Margin="10" ItemsLayout="VerticalGrid, 10" ItemsSource="{Binding ImagesList}">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
