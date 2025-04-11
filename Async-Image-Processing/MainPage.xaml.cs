@@ -6,9 +6,10 @@ namespace Async_Image_Processing
 {
     public partial class MainPage
     {
-        public ObservableCollection<ImageSource> ImagesList { get; } = new();
-        private CancellationTokenSource _cts;
-        private const int IMAGE_RESOLUTION = 128;
+        public ObservableCollection<ImageSource> ImagesList { get; } = [];
+        private CancellationTokenSource? _cts;
+        private const int image_resolution = 128;
+        private string? _folderDirectory;
 
         public MainPage()
         {
@@ -21,42 +22,57 @@ namespace Async_Image_Processing
             _cts?.Cancel();
         }
 
-        private void OnGrayLoadingClicked(object sender, EventArgs e)
+        private async void OnGrayLoadingClicked(object sender, EventArgs e)
+        {
+            _cts?.CancelAsync();
+            _cts = new CancellationTokenSource();
+            
+            try
+            {
+                await ConvertImagesAsync(_cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                await DisplayAlert("Operation Canceled", "Converting to grayscale has been canceled", "OK");
+            }
+        }
+
+        private Task ConvertImagesAsync(CancellationToken cancellationToken)
         {
             var copyList = ImagesList.ToList();
-            ImagesList.Clear();
             ImageProgressBar.Progress = 0;
-            int loadedImagesCount = 0;
+            var loadedImagesCount = 0;
             var total = copyList.Count;
             
-            Task.Run(async () =>
+            return Task.Run(async () =>
             {
                 foreach (var image in copyList)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var filtered = await ApplyGrayscaleAsync(image);
                     loadedImagesCount++;
 
+                    var idx = copyList.IndexOf(image);
                     await MainThread.InvokeOnMainThreadAsync(() =>
                     {
-                        ImagesList.Add(filtered);
+                        ImagesList[idx] = filtered;
                         ImageProgressBar.Progress = (double)loadedImagesCount / total;
                     });
                 }
-            });
+            }, cancellationToken);
         }
 
-        private async Task<ImageSource> ApplyGrayscaleAsync(ImageSource source)
+        private static async Task<ImageSource> ApplyGrayscaleAsync(ImageSource source)
         {
             if (source is not StreamImageSource streamSource)
                 return source;
 
-            var s = streamSource.Stream;
             await using var originalStream = await streamSource.Stream(CancellationToken.None);
 
             var memoryStream = new MemoryStream();
             await originalStream.CopyToAsync(memoryStream);
             memoryStream.Position = 0;
-            
+
             using var skStream = new SKManagedStream(memoryStream);
             using var bitmap = SKBitmap.Decode(skStream);
 
@@ -64,16 +80,14 @@ namespace Async_Image_Processing
             var canvas = surface.Canvas;
             canvas.Clear();
 
-            using var paint = new SKPaint
+            using var paint = new SKPaint();
+            paint.ColorFilter = SKColorFilter.CreateColorMatrix(new[]
             {
-                ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
-                {
-                    0.33f, 0.33f, 0.33f, 0, 0,
-                    0.33f, 0.33f, 0.33f, 0, 0,
-                    0.33f, 0.33f, 0.33f, 0, 0,
-                    0, 0, 0, 1, 0
-                })
-            };
+                0.33f, 0.33f, 0.33f, 0, 0,
+                0.33f, 0.33f, 0.33f, 0, 0,
+                0.33f, 0.33f, 0.33f, 0, 0,
+                0, 0, 0, 1, 0
+            });
 
             canvas.DrawBitmap(bitmap, 0, 0, paint);
 
@@ -87,32 +101,42 @@ namespace Async_Image_Processing
             return ImageSource.FromStream(() => new MemoryStream(imageBytes));
         }
 
+        private async void OnBrowseFolderClicked(object sender, EventArgs e)
+        {
+            _cts?.CancelAsync();
+            _cts = new CancellationTokenSource();
+            
+            var res = await FolderPicker.PickAsync(_cts.Token);
+
+            if (res.Folder?.Path == null) return;
+            _folderDirectory = res.Folder.Path;
+            SelectedFolderPathEntry.Text = _folderDirectory;
+        }
+
         private async void OnLoadImagesClicked(object sender, EventArgs e)
         {
             _cts?.CancelAsync();
             _cts = new CancellationTokenSource();
 
-            // TODO: proper checks
-            var res = await FolderPicker.PickAsync(_cts.Token);
-            var imagesDirectory = res.Folder.Path;
-
             try
             {
-                await LoadImagesAsync(imagesDirectory, _cts.Token);
+                await LoadImagesAsync(_cts.Token);
             }
             catch (OperationCanceledException)
             {
-                // TODO: handle cancel
+                await DisplayAlert("Operation Canceled", "Loading images has been canceled", "OK");
             }
         }
 
-        private async Task LoadImagesAsync(string imagesDirectory, CancellationToken cancellationToken)
+        private async Task LoadImagesAsync(CancellationToken cancellationToken)
         {
             // Run everything on a single worker thread
+            if (_folderDirectory == null) return;
+
             await Task.Run(async () =>
             {
                 ImagesList.Clear();
-                var imageFiles = Directory.GetFiles(imagesDirectory, "*.jpg");
+                var imageFiles = Directory.GetFiles(_folderDirectory, "*.jpg");
                 var loadedImages = 0;
                 ImageSource imageSource;
 
@@ -123,25 +147,21 @@ namespace Async_Image_Processing
                     {
                         using (var originalBitmap = SKBitmap.Decode(stream))
                         {
-                            float scalingFactor = Math.Min((float)IMAGE_RESOLUTION / originalBitmap.Width,
-                               (float)IMAGE_RESOLUTION / originalBitmap.Height);
+                            float scalingFactor = Math.Min((float)image_resolution / originalBitmap.Width,
+                                (float)image_resolution / originalBitmap.Height);
 
                             if (scalingFactor is < 1 and > 0)
                             {
                                 var newWidth = (int)(originalBitmap.Width * scalingFactor);
                                 var newHeight = (int)(originalBitmap.Height * scalingFactor);
                                 using var resizedBitmap = originalBitmap.Resize(new SKImageInfo(newWidth, newHeight),
-                                    SKFilterQuality.None);
-                                using (var image = SKImage.FromBitmap(resizedBitmap))
-                                {
-                                    using (var data = image.Encode())
-                                    {
-                                        var imageBytes = data.ToArray();
-                                        imageSource =
-                                            ImageSource.FromStream(() => new MemoryStream(imageBytes));
-                                        loadedImages++;
-                                    }
-                                }
+                                    SKSamplingOptions.Default);
+                                using var image = SKImage.FromBitmap(resizedBitmap);
+                                using var data = image.Encode();
+                                var imageBytes = data.ToArray();
+                                imageSource =
+                                    ImageSource.FromStream(() => new MemoryStream(imageBytes));
+                                loadedImages++;
                             }
                             else
                             {

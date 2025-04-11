@@ -1,22 +1,42 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+﻿<?xml version="1.0" encoding="utf-8"?>
+
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="Async_Image_Processing.MainPage">
-    <ScrollView>
-        <StackLayout>
-            <Slider Margin="10"></Slider>
-            <ProgressBar Margin="10" x:Name="ImageProgressBar"></ProgressBar>
-            <Button Margin="10" Text="Load Images" Clicked="OnLoadImagesClicked"/>
-            <Button Margin="10" Text="Cancel" Clicked="OnCancelLoadingClicked"/>
-            <Button Text="Apply Grayscale Filter" Clicked="OnGrayLoadingClicked" />
-            <CollectionView Margin="10" ItemsLayout="VerticalGrid, 10" ItemsSource="{Binding ImagesList}">
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Image Source="{Binding}"/>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-        </StackLayout>
-    </ScrollView>
+             x:Class="Async_Image_Processing.MainPage" Shell.NavBarIsVisible="False">
+    <Grid RowDefinitions="*, Auto">
+        <ScrollView Grid.Row="0">
+            <VerticalStackLayout>
+                <Grid Margin="10, 5" ColumnDefinitions="*, Auto">
+                    <Entry x:Name="SelectedFolderPathEntry"
+                           Placeholder="No folder selected"
+                           IsReadOnly="True"
+                           VerticalOptions="Center" 
+                           Margin="0,0,10,0"/>
 
-</ContentPage>
+                    <Button Text="Browse"
+                            Clicked="OnBrowseFolderClicked"
+                            Grid.Column="1"
+                            VerticalOptions="Center" />
+                </Grid>
+                
+                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,*,Auto">
+                    <Button Grid.Column="0" Text="Load Images" Clicked="OnLoadImagesClicked"/>
+                    <Button Grid.Column="1" Text="Apply Grayscale Filter" Clicked="OnGrayLoadingClicked" Margin="10, 0"/>
+                    <Button Grid.Column="3" Text="Cancel" Clicked="OnCancelLoadingClicked"/>
+                </Grid>
+                
+                <CollectionView Margin="10, 5"
+                                ItemsLayout="VerticalGrid, 10"
+                                ItemsSource="{Binding ImagesList}">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Image Margin="2" Source="{Binding}" />
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <ProgressBar Grid.Row="1" Margin="10" x:Name="ImageProgressBar"></ProgressBar>
+    </Grid>
+</ContentPage> 
