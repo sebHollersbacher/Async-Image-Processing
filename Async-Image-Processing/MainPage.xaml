@@ -10,27 +10,28 @@
                     <Entry x:Name="SelectedFolderPathEntry"
                            Placeholder="No folder selected"
                            IsReadOnly="True"
-                           VerticalOptions="Center" 
-                           Margin="0,0,10,0"/>
+                           VerticalOptions="Center"
+                           Margin="0,0,10,0" />
 
                     <Button Text="Browse"
                             Clicked="OnBrowseFolderClicked"
                             Grid.Column="1"
                             VerticalOptions="Center" />
                 </Grid>
-                
-                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,*,Auto">
-                    <Button Grid.Column="0" Text="Load Images" Clicked="OnLoadImagesClicked"/>
-                    <Button Grid.Column="1" Text="Apply Grayscale Filter" Clicked="OnGrayLoadingClicked" Margin="10, 0"/>
-                    <Button Grid.Column="3" Text="Cancel" Clicked="OnCancelLoadingClicked"/>
+
+                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+                    <Button Grid.Column="0" Text="Load Images" Clicked="OnLoadImagesClicked" />
+                    <Button Grid.Column="1" Text="Apply Grayscale Filter" Clicked="OnGrayscaleClicked" Margin="10, 0" />
+                    <Button Grid.Column="2" Text="Save" Clicked="OnSaveClicked" />
+                    <Button Grid.Column="4" Text="Cancel" Clicked="OnCancelLoadingClicked" />
                 </Grid>
-                
+
                 <CollectionView Margin="10, 5"
                                 ItemsLayout="VerticalGrid, 10"
                                 ItemsSource="{Binding ImagesList}">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Image Margin="2" Source="{Binding}" />
+                            <Image Margin="2" Source="{Binding DisplayImage}" />
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
                 </CollectionView>
@@ -39,4 +40,4 @@
 
         <ProgressBar Grid.Row="1" Margin="10" x:Name="ImageProgressBar"></ProgressBar>
     </Grid>
-</ContentPage> 
+</ContentPage>
