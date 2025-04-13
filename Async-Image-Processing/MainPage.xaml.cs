@@ -11,7 +11,7 @@ namespace Async_Image_Processing
         public ObservableCollection<ImageModel> ImagesList { get; } = [];
         private CancellationTokenSource? _cts;
         private string? _folderDirectory;
-        private List<SKPaint> _filters = [];
+        private readonly List<SKPaint> _filters = [];
 
         public MainPage()
         {
@@ -35,7 +35,9 @@ namespace Async_Image_Processing
                 ImagesList[index].DisplayImage = newImage;
                 UpdateProgressBar(progress);
             });
-
+            
+            var originalImages = ImagesList
+                .ToDictionary(img => img, img => img.DisplayImage);
             try
             {
                 await ConvertImagesAsync(_cts.Token, progress);
@@ -43,7 +45,10 @@ namespace Async_Image_Processing
             catch (OperationCanceledException)
             {
                 await DisplayAlert("Operation Canceled", "Converting to grayscale has been canceled", "OK");
-                // TODO: restore default
+                foreach (var originalImage in originalImages)
+                {
+                    originalImage.Key.DisplayImage = originalImage.Value;
+                }
             }
         }
 
@@ -54,13 +59,12 @@ namespace Async_Image_Processing
             ImageProgressBar.Progress = 0;
             var loadedImagesCount = 0;
             var total = copyList.Count;
+            var filter =
+                ImageTransformationHelper.GetPaintForFilter(ImageTransformationHelper.FilterType.Grayscale);
+            _filters.Add(filter);
 
             return Task.Run(async () =>
             {
-                var filter =
-                    ImageTransformationHelper.GetPaintForFilter(ImageTransformationHelper.FilterType.Grayscale);
-                _filters.Add(filter);
-
                 foreach (var image in copyList)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -97,17 +101,31 @@ namespace Async_Image_Processing
             if (res.Folder?.Path == null) return;
             var saveFolder = res.Folder.Path;
 
+            IProgress<double> progress = new Progress<double>(UpdateProgressBar);
+            
+            try
+            {
+                await SaveImages(saveFolder, _cts.Token, progress);
+            }
+            catch (Exception ex) when (
+                ex is OperationCanceledException ||
+                (ex is AggregateException aggEx && aggEx.InnerExceptions.All(exception => exception is OperationCanceledException)))
+            {
+                await DisplayAlert("Operation Canceled", "Saving Images was canceled.", "OK");
+            }
+        }
+
+        private async Task SaveImages(string saveFolder, CancellationToken cancellationToken,
+            IProgress<double>? imageSavedProgress = null)
+        {
             var total = ImagesList.Count;
             var saved = 0;
-            IProgress<double> progress = new Progress<double>(UpdateProgressBar);
-
-            // TODO: fix cancel
             await Task.Run(() =>
             {
                 Parallel.ForEach(ImagesList,
                     image =>
                     {
-                        _cts.Token.ThrowIfCancellationRequested();
+                        cancellationToken.ThrowIfCancellationRequested();
 
                         // Load the original
                         using var original = SKBitmap.Decode(image.OriginalPath);
@@ -128,9 +146,9 @@ namespace Async_Image_Processing
                         processed.Encode(SKEncodedImageFormat.Jpeg, 90).SaveTo(fs);
 
                         Interlocked.Increment(ref saved);
-                        progress.Report(saved / (double)total);
+                        imageSavedProgress?.Report(saved / (double)total);
                     });
-            }, _cts.Token);
+            }, cancellationToken);
         }
 
         private async void OnLoadImagesClicked(object sender, EventArgs e)
@@ -138,7 +156,7 @@ namespace Async_Image_Processing
             _cts?.CancelAsync();
             _cts = new CancellationTokenSource();
 
-            IProgress<(ImageModel, double)>? progress = new Progress<(ImageModel, double)>(tuple =>
+            IProgress<(ImageModel, double)> progress = new Progress<(ImageModel, double)>(tuple =>
             {
                 (ImageModel model, double progress) = tuple;
                 ImagesList.Add(model);
