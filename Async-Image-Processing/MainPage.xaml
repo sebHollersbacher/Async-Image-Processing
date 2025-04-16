@@ -32,7 +32,9 @@
 
                 <CollectionView Margin="10, 5"
                                 ItemsLayout="VerticalGrid, 10"
-                                ItemsSource="{Binding ImagesList}">
+                                ItemsSource="{Binding ImagesList}"
+                                SelectionMode="Single" 
+                                SelectionChanged="OnImageSelected">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Image Margin="2" Source="{Binding DisplayImage}" />

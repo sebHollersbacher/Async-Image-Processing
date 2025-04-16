@@ -36,6 +36,16 @@ namespace Async_Image_Processing
             BindingContext = this;
         }
 
+        private async void OnImageSelected(object sender, SelectionChangedEventArgs e)
+        {
+            var selectedImage = e.CurrentSelection.FirstOrDefault() as ImageModel;
+            if (selectedImage == null)
+                return;
+
+            await Navigation.PushAsync(new FullImagePage(selectedImage.OriginalPath, _filters));
+            ((CollectionView)sender).SelectedItem = null;
+        }
+        
         private void OnCancelLoadingClicked(object sender, EventArgs e)
         {
             _cts?.Cancel();
