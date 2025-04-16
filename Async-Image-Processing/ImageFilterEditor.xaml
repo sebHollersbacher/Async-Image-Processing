@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<toolkit:Popup
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+    HorizontalOptions="Fill"
+    VerticalOptions="Fill"
+    Color="Transparent"
+    CanBeDismissedByTappingOutsideOfPopup="False"
+    x:Class="Async_Image_Processing.ImageFilterEditor">
+
+    <Border BackgroundColor="Transparent"
+            HorizontalOptions="Center"
+            VerticalOptions="Center">
+
+        <!-- 2nd border for correct padding -->
+        <Border BackgroundColor="White"
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                Padding="20"
+                StrokeShape="RoundRectangle 20">
+
+            <VerticalStackLayout
+                HorizontalOptions="Center"
+                VerticalOptions="Center"
+                BackgroundColor="White">
+
+                <Picker x:Name="SizePicker"
+                        Title="Matrix Size"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center"
+                        SelectedIndexChanged="OnSizeChanged">
+                    <Picker.ItemsSource>
+                        <x:Array Type="{x:Type x:Int32}">
+                            <x:Int32>3</x:Int32>
+                            <x:Int32>5</x:Int32>
+                            <x:Int32>7</x:Int32>
+                            <x:Int32>9</x:Int32>
+                            <x:Int32>11</x:Int32>
+                        </x:Array>
+                    </Picker.ItemsSource>
+                </Picker>
+
+                <Grid x:Name="MatrixGrid" Margin="10"
+                      HorizontalOptions="Center"
+                      VerticalOptions="Center" />
+
+                <Button Text="OK" Clicked="OnOkClicked"
+                        HorizontalOptions="Center"
+                        VerticalOptions="Center" />
+            </VerticalStackLayout>
+        </Border>
+    </Border>
+</toolkit:Popup>

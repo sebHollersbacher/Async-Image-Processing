@@ -7,7 +7,8 @@
     HorizontalOptions="Fill"
     VerticalOptions="Fill"
     Color="Transparent"
-    x:Class="Async_Image_Processing.MatrixEditor">
+    CanBeDismissedByTappingOutsideOfPopup="False"
+    x:Class="Async_Image_Processing.ColorFilterEditor">
 
     <Border BackgroundColor="Transparent"
             HorizontalOptions="Center"
@@ -24,22 +25,6 @@
                 HorizontalOptions="Center"
                 VerticalOptions="Center"
                 BackgroundColor="White">
-
-                <Picker x:Name="SizePicker"
-                        Title="Matrix Size"
-                        HorizontalOptions="Center"
-                        VerticalOptions="Center"
-                        SelectedIndexChanged="OnSizeChanged">
-                    <Picker.ItemsSource>
-                        <x:Array Type="{x:Type x:Int32}">
-                            <x:Int32>3</x:Int32>
-                            <x:Int32>5</x:Int32>
-                            <x:Int32>7</x:Int32>
-                            <x:Int32>9</x:Int32>
-                            <x:Int32>11</x:Int32>
-                        </x:Array>
-                    </Picker.ItemsSource>
-                </Picker>
 
                 <Grid x:Name="MatrixGrid" Margin="10"
                       HorizontalOptions="Center"

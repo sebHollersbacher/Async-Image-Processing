@@ -20,17 +20,22 @@
                     <Button Grid.Column="2" Text="Load Images" Clicked="OnLoadImagesClicked" />
                 </Grid>
 
-                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto,Auto">
                     <Button Grid.Column="0" Text="Apply Filter" Clicked="OnGrayscaleClicked" />
                     <Picker Grid.Column="1" Margin="10, 0"
                             ItemsSource="{Binding FilterTypes}"
                             SelectedItem="{Binding SelectedFilter, Mode=TwoWay}" />
-                    <Button Text="Edit Matrix"
+                    <Button Text="Edit Image Filter"
                             Grid.Column="2"
                             IsVisible="{Binding IsCustomFilterSelected}"
-                            Clicked="OnEditMatrixClicked" />
-                    <Button Grid.Column="4" Text="Save" Clicked="OnSaveClicked" Margin="10, 0" />
-                    <Button Grid.Column="5" Text="Cancel" Clicked="OnCancelLoadingClicked" />
+                            Clicked="OnEditImageFilterClicked" />
+                    <Button Text="Edit Color Filter"
+                            Grid.Column="3"
+                            Margin="10, 0"
+                            IsVisible="{Binding IsCustomFilterSelected}"
+                            Clicked="OnEditColorFilterClicked" />
+                    <Button Grid.Column="5" Text="Save" Clicked="OnSaveClicked" Margin="10, 0" />
+                    <Button Grid.Column="6" Text="Cancel" Clicked="OnCancelLoadingClicked" />
                 </Grid>
 
                 <CollectionView Margin="10, 5"

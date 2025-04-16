@@ -66,4 +66,17 @@
 		<PackageReference Include="SkiaSharp" Version="3.116.1" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <MauiXaml Update="ColorFilterEditor.xaml">
+	    <SubType>Designer</SubType>
+	  </MauiXaml>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Update="ColorFilterEditor.xaml.cs">
+	    <DependentUpon>ColorFilterEditor.xaml</DependentUpon>
+	    <SubType>Code</SubType>
+	  </Compile>
+	</ItemGroup>
+
 </Project>

@@ -14,7 +14,7 @@ namespace Async_Image_Processing
         private string? _folderDirectory;
         private readonly List<SKPaint> _filters = [];
 
-        private SKColorFilter? _customColorFilter = null;
+        private SKColorFilter? _customColorFilter;
         private SKImageFilter? _customImageFilter;
 
         public IEnumerable<ImageTransformationHelper.FilterType> FilterTypes =>
@@ -43,9 +43,9 @@ namespace Async_Image_Processing
             BindingContext = this;
         }
 
-        private async void OnEditMatrixClicked(object sender, EventArgs e)
+        private async void OnEditImageFilterClicked(object sender, EventArgs e)
         {
-            var popup = new MatrixEditor();
+            var popup = new ImageFilterEditor();
             var result = await this.ShowPopupAsync(popup);
             if (result is float[] matrixData)
             {
@@ -58,6 +58,16 @@ namespace Async_Image_Processing
                     new SKPointI(1, 1),
                     SKShaderTileMode.Clamp,
                     false);
+            }
+        }
+        
+        private async void OnEditColorFilterClicked(object sender, EventArgs e)
+        {
+            var popup = new ColorFilterEditor();
+            var result = await this.ShowPopupAsync(popup);
+            if (result is float[] matrixData)
+            {
+                _customColorFilter = SKColorFilter.CreateColorMatrix(matrixData);
             }
         }
 
@@ -237,6 +247,7 @@ namespace Async_Image_Processing
             await Task.Run(async () =>
             {
                 ImagesList.Clear();
+                _filters.Clear();
                 var imageFiles = Directory.GetFiles(_folderDirectory, "*.jpg");
                 var loadedImages = 0;
 

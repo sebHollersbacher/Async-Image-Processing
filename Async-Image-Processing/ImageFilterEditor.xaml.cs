@@ -2,9 +2,9 @@ using CommunityToolkit.Maui.Views;
 
 namespace Async_Image_Processing
 {
-    public partial class MatrixEditor : Popup
+    public partial class ImageFilterEditor : Popup
     {
-        public MatrixEditor()
+        public ImageFilterEditor()
         {
             InitializeComponent();
             SizePicker.SelectedIndex = 0;
