@@ -6,34 +6,37 @@
     <Grid RowDefinitions="*, Auto">
         <ScrollView Grid.Row="0">
             <VerticalStackLayout>
-                <Grid Margin="10, 5" ColumnDefinitions="*, Auto">
+                <Grid Margin="10, 5" ColumnDefinitions="*, Auto, Auto">
                     <Entry x:Name="SelectedFolderPathEntry"
                            Placeholder="No folder selected"
                            IsReadOnly="True"
-                           VerticalOptions="Center"
-                           Margin="0,0,10,0" />
+                           VerticalOptions="Center" />
 
                     <Button Text="Browse"
                             Clicked="OnBrowseFolderClicked"
                             Grid.Column="1"
-                            VerticalOptions="Center" />
+                            VerticalOptions="Center"
+                            Margin="10,0" />
+                    <Button Grid.Column="2" Text="Load Images" Clicked="OnLoadImagesClicked" />
                 </Grid>
 
-                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
-                    <Button Grid.Column="0" Text="Load Images" Clicked="OnLoadImagesClicked" />
-                    <Button Grid.Column="1" Text="Apply Filter" Clicked="OnGrayscaleClicked" Margin="10, 0" />
-                    <Button Grid.Column="2" Text="Save" Clicked="OnSaveClicked" />
-                    <Picker Grid.Column="3" Margin="10, 0"
+                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto">
+                    <Button Grid.Column="0" Text="Apply Filter" Clicked="OnGrayscaleClicked" />
+                    <Picker Grid.Column="1" Margin="10, 0"
                             ItemsSource="{Binding FilterTypes}"
                             SelectedItem="{Binding SelectedFilter, Mode=TwoWay}" />
-                    
+                    <Button Text="Edit Matrix"
+                            Grid.Column="2"
+                            IsVisible="{Binding IsCustomFilterSelected}"
+                            Clicked="OnEditMatrixClicked" />
+                    <Button Grid.Column="4" Text="Save" Clicked="OnSaveClicked" Margin="10, 0" />
                     <Button Grid.Column="5" Text="Cancel" Clicked="OnCancelLoadingClicked" />
                 </Grid>
 
                 <CollectionView Margin="10, 5"
                                 ItemsLayout="VerticalGrid, 10"
                                 ItemsSource="{Binding ImagesList}"
-                                SelectionMode="Single" 
+                                SelectionMode="Single"
                                 SelectionChanged="OnImageSelected">
                     <CollectionView.ItemTemplate>
                         <DataTemplate>

@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using CommunityToolkit.Maui.Storage;
+using CommunityToolkit.Maui.Views;
 using SkiaSharp;
 
 namespace Async_Image_Processing
@@ -13,10 +14,15 @@ namespace Async_Image_Processing
         private string? _folderDirectory;
         private readonly List<SKPaint> _filters = [];
 
+        private SKColorFilter? _customColorFilter = null;
+        private SKImageFilter? _customImageFilter;
+
         public IEnumerable<ImageTransformationHelper.FilterType> FilterTypes =>
             Enum.GetValues<ImageTransformationHelper.FilterType>();
 
+        public bool IsCustomFilterSelected => SelectedFilter == ImageTransformationHelper.FilterType.Custom;
         private ImageTransformationHelper.FilterType _selectedFilter;
+
         public ImageTransformationHelper.FilterType SelectedFilter
         {
             get => _selectedFilter;
@@ -26,6 +32,7 @@ namespace Async_Image_Processing
                 {
                     _selectedFilter = value;
                     OnPropertyChanged();
+                    OnPropertyChanged(nameof(IsCustomFilterSelected));
                 }
             }
         }
@@ -34,6 +41,24 @@ namespace Async_Image_Processing
         {
             InitializeComponent();
             BindingContext = this;
+        }
+
+        private async void OnEditMatrixClicked(object sender, EventArgs e)
+        {
+            var popup = new MatrixEditor();
+            var result = await this.ShowPopupAsync(popup);
+            if (result is float[] matrixData)
+            {
+                var size = (int)Math.Sqrt(matrixData.Length);
+                _customImageFilter = SKImageFilter.CreateMatrixConvolution(
+                    new SKSizeI(size, size),
+                    matrixData,
+                    1f,
+                    0f,
+                    new SKPointI(1, 1),
+                    SKShaderTileMode.Clamp,
+                    false);
+            }
         }
 
         private async void OnImageSelected(object sender, SelectionChangedEventArgs e)
@@ -45,7 +70,7 @@ namespace Async_Image_Processing
             await Navigation.PushAsync(new FullImagePage(selectedImage.OriginalPath, _filters));
             ((CollectionView)sender).SelectedItem = null;
         }
-        
+
         private void OnCancelLoadingClicked(object sender, EventArgs e)
         {
             _cts?.Cancel();
@@ -87,7 +112,7 @@ namespace Async_Image_Processing
             var loadedImagesCount = 0;
             var total = copyList.Count;
             var filter =
-                ImageTransformationHelper.GetPaintForFilter(SelectedFilter);
+                ImageTransformationHelper.GetPaintForFilter(SelectedFilter, _customColorFilter, _customImageFilter);
             _filters.Add(filter);
 
             return Task.Run(async () =>
