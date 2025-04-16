@@ -13,6 +13,23 @@ namespace Async_Image_Processing
         private string? _folderDirectory;
         private readonly List<SKPaint> _filters = [];
 
+        public IEnumerable<ImageTransformationHelper.FilterType> FilterTypes =>
+            Enum.GetValues<ImageTransformationHelper.FilterType>();
+
+        private ImageTransformationHelper.FilterType _selectedFilter;
+        public ImageTransformationHelper.FilterType SelectedFilter
+        {
+            get => _selectedFilter;
+            set
+            {
+                if (_selectedFilter != value)
+                {
+                    _selectedFilter = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         public MainPage()
         {
             InitializeComponent();
@@ -35,7 +52,7 @@ namespace Async_Image_Processing
                 ImagesList[index].DisplayImage = newImage;
                 UpdateProgressBar(progress);
             });
-            
+
             var originalImages = ImagesList
                 .ToDictionary(img => img, img => img.DisplayImage);
             try
@@ -60,7 +77,7 @@ namespace Async_Image_Processing
             var loadedImagesCount = 0;
             var total = copyList.Count;
             var filter =
-                ImageTransformationHelper.GetPaintForFilter(ImageTransformationHelper.FilterType.Grayscale);
+                ImageTransformationHelper.GetPaintForFilter(SelectedFilter);
             _filters.Add(filter);
 
             return Task.Run(async () =>
@@ -74,7 +91,8 @@ namespace Async_Image_Processing
                             cancellationToken);
                     loadedImagesCount++;
 
-                    imageChangedProgress?.Report((filtered, copyList.IndexOf(image), loadedImagesCount / (double)total));
+                    imageChangedProgress?.Report((filtered, copyList.IndexOf(image),
+                        loadedImagesCount / (double)total));
                 }
             }, cancellationToken);
         }
@@ -102,14 +120,15 @@ namespace Async_Image_Processing
             var saveFolder = res.Folder.Path;
 
             IProgress<double> progress = new Progress<double>(UpdateProgressBar);
-            
+
             try
             {
                 await SaveImages(saveFolder, _cts.Token, progress);
             }
             catch (Exception ex) when (
                 ex is OperationCanceledException ||
-                (ex is AggregateException aggEx && aggEx.InnerExceptions.All(exception => exception is OperationCanceledException)))
+                (ex is AggregateException aggEx &&
+                 aggEx.InnerExceptions.All(exception => exception is OperationCanceledException)))
             {
                 await DisplayAlert("Operation Canceled", "Saving Images was canceled.", "OK");
             }
@@ -122,28 +141,30 @@ namespace Async_Image_Processing
             var saved = 0;
             await Task.Run(() =>
             {
-                Parallel.ForEach(ImagesList,
+                Parallel.ForEach(
+                    ImagesList,
+                    new ParallelOptions
+                        { CancellationToken = cancellationToken, MaxDegreeOfParallelism = Environment.ProcessorCount },
                     image =>
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        // Load the original
                         using var original = SKBitmap.Decode(image.OriginalPath);
-
-                        // Apply all filters
                         var processed = original;
+
                         foreach (var filter in _filters)
                         {
-                            processed = ImageTransformationHelper.Filter(processed, filter);
+                            var next = ImageTransformationHelper.Filter(processed, filter);
+                            processed.Dispose();
+                            processed = next;
                         }
 
-                        // Define save path
                         var fileName = Path.GetFileName(image.OriginalPath);
                         var savePath = Path.Combine(saveFolder, fileName);
 
-                        // Save it
                         using var fs = File.OpenWrite(savePath);
                         processed.Encode(SKEncodedImageFormat.Jpeg, 90).SaveTo(fs);
+                        processed.Dispose();
 
                         Interlocked.Increment(ref saved);
                         imageSavedProgress?.Report(saved / (double)total);

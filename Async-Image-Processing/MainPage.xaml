@@ -19,11 +19,15 @@
                             VerticalOptions="Center" />
                 </Grid>
 
-                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,*,Auto">
+                <Grid Margin="10, 0" ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto">
                     <Button Grid.Column="0" Text="Load Images" Clicked="OnLoadImagesClicked" />
-                    <Button Grid.Column="1" Text="Apply Grayscale Filter" Clicked="OnGrayscaleClicked" Margin="10, 0" />
+                    <Button Grid.Column="1" Text="Apply Filter" Clicked="OnGrayscaleClicked" Margin="10, 0" />
                     <Button Grid.Column="2" Text="Save" Clicked="OnSaveClicked" />
-                    <Button Grid.Column="4" Text="Cancel" Clicked="OnCancelLoadingClicked" />
+                    <Picker Grid.Column="3" Margin="10, 0"
+                            ItemsSource="{Binding FilterTypes}"
+                            SelectedItem="{Binding SelectedFilter, Mode=TwoWay}" />
+                    
+                    <Button Grid.Column="5" Text="Cancel" Clicked="OnCancelLoadingClicked" />
                 </Grid>
 
                 <CollectionView Margin="10, 5"

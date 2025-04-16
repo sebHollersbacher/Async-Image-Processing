@@ -6,7 +6,6 @@ public static class ImageTransformationHelper
 {
     public enum FilterType
     {
-        None,
         Grayscale,
         Sepia,
         Blur,
@@ -22,9 +21,8 @@ public static class ImageTransformationHelper
         if (source is not StreamImageSource streamSource)
             return source;
 
-        // Load stream from ImageSource
         await using var originalStream = await streamSource.Stream(cancellationToken);
-        var memoryStream = new MemoryStream();
+        await using var memoryStream = new MemoryStream();
         await originalStream.CopyToAsync(memoryStream, cancellationToken);
         memoryStream.Position = 0;
 
@@ -34,10 +32,8 @@ public static class ImageTransformationHelper
         if (bitmap == null)
             throw new InvalidOperationException("Failed to decode bitmap.");
 
-        // Apply your filter
         using var filtered = Filter(bitmap, paint);
 
-        // Encode back to ImageSource
         using var image = SKImage.FromBitmap(filtered);
         using var data = image.Encode(SKEncodedImageFormat.Png, 100);
         var bytes = data.ToArray();
@@ -51,7 +47,7 @@ public static class ImageTransformationHelper
         using var surface = SKSurface.Create(info);
         var canvas = surface.Canvas;
         canvas.Clear();
-        
+
         canvas.DrawBitmap(bitmap, 0, 0, filter);
         var image = surface.Snapshot();
         var newBitmap = new SKBitmap(image.Width, image.Height);
@@ -125,9 +121,6 @@ public static class ImageTransformationHelper
                     paint.ImageFilter = customImageFilter;
                 }
 
-                break;
-            case FilterType.None:
-            default:
                 break;
         }
 
