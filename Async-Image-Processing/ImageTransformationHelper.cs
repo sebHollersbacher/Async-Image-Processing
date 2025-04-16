@@ -8,8 +8,12 @@ public static class ImageTransformationHelper
     {
         Grayscale,
         Sepia,
+        Invert,
+        Brightness,
         Blur,
         Sharpen,
+        Emboss,
+        Edge,
         Custom
     }
 
@@ -81,6 +85,26 @@ public static class ImageTransformationHelper
                 });
                 break;
 
+            case FilterType.Invert:
+                paint.ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
+                {
+                    -1, 0, 0, 0, 1,
+                    0, -1, 0, 0, 1,
+                    0, 0, -1, 0, 1,
+                    0, 0, 0, 1, 0
+                });
+                break;
+
+            case FilterType.Brightness:
+                paint.ColorFilter = SKColorFilter.CreateColorMatrix(new float[]
+                {
+                    1, 0, 0, 0, .5f,
+                    0, 1, 0, 0, .5f,
+                    0, 0, 1, 0, .5f,
+                    0, 0, 0, 1, 0
+                });
+                break;
+
             case FilterType.Blur:
                 paint.ImageFilter = SKImageFilter.CreateMatrixConvolution(
                     new SKSizeI(3, 3),
@@ -110,6 +134,37 @@ public static class ImageTransformationHelper
                     SKShaderTileMode.Clamp,
                     false);
                 break;
+
+            case FilterType.Emboss:
+                paint.ImageFilter = SKImageFilter.CreateMatrixConvolution(
+                    new SKSizeI(3, 3),
+                    [
+                        -2, -1, 0,
+                        -1, 1, 1,
+                        0, 1, 2
+                    ],
+                    1f,
+                    0f,
+                    new SKPointI(1, 1),
+                    SKShaderTileMode.Clamp,
+                    false);
+                break;
+
+            case FilterType.Edge:
+                paint.ImageFilter = SKImageFilter.CreateMatrixConvolution(
+                    new SKSizeI(3, 3),
+                    [
+                        -1, -1, -1,
+                        -1, 8, -1,
+                        -1, -1, -1
+                    ],
+                    1f,
+                    0f,
+                    new SKPointI(1, 1),
+                    SKShaderTileMode.Clamp,
+                    false);
+                break;
+
             case FilterType.Custom:
                 if (customColorFilter != null)
                 {
