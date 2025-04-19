@@ -10,7 +10,7 @@ namespace Async_Image_Processing
         private const int image_resolution = 128;
 
         public ObservableCollection<ImageModel> ImagesList { get; } = [];
-        private CancellationTokenSource? _cts;
+        private CancellationTokenSource? _cancellationTokenSource;
         private string? _folderDirectory;
         private readonly List<SKPaint> _filters = [];
 
@@ -60,7 +60,7 @@ namespace Async_Image_Processing
                     false);
             }
         }
-        
+
         private async void OnEditColorFilterClicked(object sender, EventArgs e)
         {
             var popup = new ColorFilterEditor();
@@ -83,15 +83,15 @@ namespace Async_Image_Processing
 
         private void OnCancelLoadingClicked(object sender, EventArgs e)
         {
-            _cts?.Cancel();
+            _cancellationTokenSource?.Cancel();
         }
 
         private async void OnGrayscaleClicked(object sender, EventArgs e)
         {
-            _cts?.CancelAsync();
-            _cts = new CancellationTokenSource();
+            _cancellationTokenSource?.CancelAsync();
+            _cancellationTokenSource = new CancellationTokenSource();
 
-            IProgress<(ImageSource, int, double)> progress = new Progress<(ImageSource, int, double)>(tuple =>
+            var progress = new Progress<(ImageSource, int, double)>(tuple =>
             {
                 (ImageSource newImage, int index, double progress) = tuple;
                 ImagesList[index].DisplayImage = newImage;
@@ -102,7 +102,7 @@ namespace Async_Image_Processing
                 .ToDictionary(img => img, img => img.DisplayImage);
             try
             {
-                await ConvertImagesAsync(_cts.Token, progress);
+                await ConvertImagesAsync(_cancellationTokenSource.Token, progress);
             }
             catch (OperationCanceledException)
             {
@@ -121,12 +121,12 @@ namespace Async_Image_Processing
             ImageProgressBar.Progress = 0;
             var loadedImagesCount = 0;
             var total = copyList.Count;
-            var filter =
-                ImageTransformationHelper.GetPaintForFilter(SelectedFilter, _customColorFilter, _customImageFilter);
-            _filters.Add(filter);
 
             return Task.Run(async () =>
             {
+                var filter =
+                    ImageTransformationHelper.GetPaintForFilter(SelectedFilter, _customColorFilter, _customImageFilter);
+                _filters.Add(filter);
                 foreach (var image in copyList)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -144,10 +144,10 @@ namespace Async_Image_Processing
 
         private async void OnBrowseFolderClicked(object sender, EventArgs e)
         {
-            _cts?.CancelAsync();
-            _cts = new CancellationTokenSource();
+            _cancellationTokenSource?.CancelAsync();
+            _cancellationTokenSource = new CancellationTokenSource();
 
-            var res = await FolderPicker.PickAsync(_cts.Token);
+            var res = await FolderPicker.PickAsync(_cancellationTokenSource.Token);
 
             if (res.Folder?.Path == null) return;
             _folderDirectory = res.Folder.Path;
@@ -156,10 +156,10 @@ namespace Async_Image_Processing
 
         private async void OnSaveClicked(object sender, EventArgs e)
         {
-            _cts?.CancelAsync();
-            _cts = new CancellationTokenSource();
+            _cancellationTokenSource?.CancelAsync();
+            _cancellationTokenSource = new CancellationTokenSource();
 
-            var res = await FolderPicker.PickAsync(_cts.Token);
+            var res = await FolderPicker.PickAsync(_cancellationTokenSource.Token);
 
             if (res.Folder?.Path == null) return;
             var saveFolder = res.Folder.Path;
@@ -168,7 +168,7 @@ namespace Async_Image_Processing
 
             try
             {
-                await SaveImages(saveFolder, _cts.Token, progress);
+                await SaveImages(saveFolder, _cancellationTokenSource.Token, progress);
             }
             catch (Exception ex) when (
                 ex is OperationCanceledException ||
@@ -178,13 +178,13 @@ namespace Async_Image_Processing
                 await DisplayAlert("Operation Canceled", "Saving Images was canceled.", "OK");
             }
         }
-
-        private async Task SaveImages(string saveFolder, CancellationToken cancellationToken,
+        
+        private Task SaveImages(string saveFolder, CancellationToken cancellationToken,
             IProgress<double>? imageSavedProgress = null)
         {
             var total = ImagesList.Count;
             var saved = 0;
-            await Task.Run(() =>
+            return Task.Run(() =>
             {
                 Parallel.ForEach(
                     ImagesList,
@@ -219,10 +219,10 @@ namespace Async_Image_Processing
 
         private async void OnLoadImagesClicked(object sender, EventArgs e)
         {
-            _cts?.CancelAsync();
-            _cts = new CancellationTokenSource();
+            _cancellationTokenSource?.CancelAsync();
+            _cancellationTokenSource = new CancellationTokenSource();
 
-            IProgress<(ImageModel, double)> progress = new Progress<(ImageModel, double)>(tuple =>
+            var progress = new Progress<(ImageModel, double)>(tuple =>
             {
                 (ImageModel model, double progress) = tuple;
                 ImagesList.Add(model);
@@ -231,7 +231,7 @@ namespace Async_Image_Processing
 
             try
             {
-                await LoadImagesAsync(_cts.Token, progress);
+                await LoadImagesAsync(_cancellationTokenSource.Token, progress);
             }
             catch (OperationCanceledException)
             {
